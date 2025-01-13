@@ -26,13 +26,18 @@ Hefei High-Tech Cup (HFHC) Dataset contains 20335 medical ECG samples and was pr
 # :question:How to use
 ## :pencil2:Data Preprocessing
 In order to use a data set, you need to process the data set first.
-```python  
-python  
+For CPCS2018 dataset, you should firstly run `utils/convert_cpcs.py` to generate `cpsc_database.csv`<br>
+Then you can run `utils/dataset.py` and generate the npy file
+```python 
+python utils/dataset.py
 ```
 ## :page_with_curl:Modify parameter file
 You need to change the parameter file to your own configuration, including `dataset`, `save_path`, `n_class`, etc
 ## :arrow_forward:Run code 
 For the PTB-XL data set and CPCS2018 data set, you only need to run the `main.py` file, for the HFHC data set, you need to run the `main_HFHC.py` file
+```python 
+python main.py
+```
 # Acknowledgement
 We thank the codes for [link](https://github.com/Frank-Wang-oss/FCSTGNN)
 
