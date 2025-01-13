@@ -9,7 +9,7 @@ In order to run this project, you need to install the following packages:
 # :partying_face:Abstract
 The 12-lead electrocardiogram (ECG) is a crucial tool for diagnosing cardiovascular diseases. Traditional ECG-based automated diagnostic methods typically capture spatial and temporal dependencies separately. However, due to the complex spatial-temporal relationships in 12-lead ECGs, they often overlook fine-grained correlations across different leads at various timestamps, which could be enhanced using external knowledge. This limitation hinders the representation of patient-specific information. In this work, we address these challenges using a Spatial-Temporal Dynamic Graph (STAR). STAR models each patient’s ECG as a dynamic Spatial-Temporal Relationship (STR) graph, effectively capturing spatial-temporal dependencies and patient-specific features by integrating ECG data with latent spatial-temporal knowledge. Our method incorporates a patch-wise multi-scale temporal feature extraction module to enhance fine-grained temporal representation. To further capture the comprehensive spatial-temporal dependencies in the STR graph, a dynamic graph learning module with a lead-specific pooling method is proposed. Experiments demonstrate that our approach outperforms state-of-the-art methods across multiple tasks on several multi-label datasets. The code is available at [Alt](https://github.com/Aires2019/Spatial-Temporal-ECG "code").
 
-# ::jp:Dataset
+# :jp:Dataset
 We use three dataset for our experiments:
 ## :ballot_box_with_check:PTB-XL
 You can download the dataset at this [link](https://physionet.org/content/ptb-xl/1.0.3/)<br>
@@ -24,10 +24,10 @@ Hefei High-Tech Cup (HFHC) Dataset contains 20335 medical ECG samples and was pr
 # :exclamation:Experimental Results
 
 # :question:How to use
-## 1.:pencil2:Data Preprocessing
+## :pencil2:Data Preprocessing
 In order to use a data set, you need to process the data set first
-## 2.:page_with_curl:Modify parameter file
-## 3.:arrow_forward:Run code 
+## :page_with_curl:Modify parameter file
+## :arrow_forward:Run code 
 
 # Acknowledgement
 We thank the codes for [link](https://github.com/Frank-Wang-oss/FCSTGNN)
