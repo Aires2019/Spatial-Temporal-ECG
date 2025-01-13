@@ -39,5 +39,5 @@ For the PTB-XL data set and CPCS2018 data set, you only need to run the `main.py
 python main.py
 ```
 # Acknowledgement
-Thanks to code [code](https://github.com/ysxGitHub/MVMS-net/tree/main) for providing reference for our data preprocessing
+Thanks to [code](https://github.com/ysxGitHub/MVMS-net/tree/main) for providing reference for our data preprocessing
 
