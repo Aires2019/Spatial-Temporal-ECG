@@ -12,13 +12,13 @@ The 12-lead electrocardiogram (ECG) is a crucial tool for diagnosing cardiovascu
 # :smiley:Dataset
 We use three dataset for our experiments:
 ## PTB-XL
-You can download the dataset at this [link](https://physionet.org/content/ptb-xl/1.0.3/)
+You can download the dataset at this [link](https://physionet.org/content/ptb-xl/1.0.3/)<br>
 The PTB-XL ECG dataset contains 21,837 10-second clinical 12-lead electrocardiograms from 18,885 patients. The dataset contained 52% of men and 48% of women, covering the age range 0-95 years. In the annotation file, there are 71 SCP-ECG statements for ECG annotation, which can be divided into three categories: diagnostic statements, formal statements, and rhythm statements. Based on diagnostic statements, the PTB-XL dataset provides five coarse superclasses (NORM, CD, MI, HYP and STTC). In this study, five coarse superclasses were selected for multi-label ECG classification experiments. 
 ## CPCS2018
-You can download the dataset at this [link](http://2018.icbeb.org/Challenge.html)
+You can download the dataset at this [link](http://2018.icbeb.org/Challenge.html)<br>
 The multi-label dataset, derived from the China Physiological Signaling Challenge 2018 (CPSC 2018), contained 6,877 12-lead electrocardiogram recordings ranging in time from 6 to 60 seconds. The dataset has 9 classes with a sampling frequency of 500hz, and we downsample the data to 100hz when using it. Due to inconsistent data length, we sampled all data to 10s; KFold was used to divide the data into 10 groups, and 10-fold cross-validation was used for the experiment.
 ## HFHC
-You can download the dataset at this [link](https://tianchi.aliyun.com/competition/entrance/231754/information)
+You can download the dataset at this [link](https://tianchi.aliyun.com/competition/entrance/231754/information)<br>
 Hefei High-Tech Cup (HFHC) Dataset contains 20335 medical ECG samples and was provided by the Engineering Research Center of the Ministry of Education of the Mobile Health Management System of Hangzhou Normal University. The dataset has 34 classes. Each sample has eight leads: I, II, V1, V2, V3, V4, V5, and V6. The data for the remaining 4 leads can be calculated from the data for the first 8 leads. The sampling frequency of each data point is 500hz and the sampling time is 10 seconds. We also reduced the sampling frequency of the data to 100hz, and then normalized the data. 10-fold cross-validation was also used for the dataset.
 
 
