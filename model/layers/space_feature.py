@@ -7,39 +7,16 @@ from torch.nn.parameter import Parameter
 from torch import Tensor
 from torch.autograd import Variable
 from FC_STGNN.args import args
+
 args = args()
 # from pytorch_util import weights_init, gnn_spmm
 EPS = 1e-15
 
-# 此处代码放置图学习的模块
-
 '''
-建图的方法
+This is for Graph Learning
 '''
 
 
-# 动态图构建 利用节点之间的相似性==========================================================================================
-class Graph_Construction_Similarity(nn.Module):
-    def __init__(self, num_node):
-        super(Graph_Construction_Similarity, self).__init__()
-        self.W_adj = nn.Linear(num_node, num_node, bias=False)
-
-    def forward(self, X):
-        # 计算相似性矩阵C
-        dist = torch.cdist(X, X)  # 计算每对节点之间的欧氏距离
-        sim = torch.exp(-dist) / torch.sum(torch.exp(-dist), dim=-1, keepdim=True)  # batch_size*num_node*num_node
-        # 生成邻接矩阵A
-        A = torch.sigmoid(self.W_adj(sim))  # 激活函数可以是sigmoid或softmax
-
-        # 稀疏化和归一化
-        threshold = 0.3
-        A = torch.where(A > threshold, A, torch.tensor(0.0, device=A.device))
-        A = A / A.sum(dim=-1, keepdim=True)  # 行归一化
-
-        return A
-
-
-# FC图构建 直接利用节点特征相乘进行初始化=====================================================================================
 class Dot_Graph_Construction_weights(nn.Module):
     def __init__(self, input_dim):
         super().__init__()
@@ -65,194 +42,11 @@ class Dot_Graph_Construction_weights(nn.Module):
         return Adj
 
 
-# 不用到特征矩阵 只进行随机初始化建图=========================================================================================
-class Multi_shallow_embedding(nn.Module):
-    def __init__(self, num_nodes, k_neighs):
-        super().__init__()
-
-        self.num_nodes = num_nodes
-        self.k = k_neighs
-        # num_graphs will be dynamic, so it's not initialized here
-
-    def reset_parameters(self, emb_s, emb_t):
-        init.xavier_uniform_(emb_s)
-        init.xavier_uniform_(emb_t)
-
-    def forward(self, x):
-        # Extract batch size as num_graphs from x
-        num_graphs = x.shape[0]  # assuming x has shape [batch_size, ...]
-        device = x.device
-        # Create emb_s and emb_t dynamically based on the current batch size
-        emb_s = Parameter(torch.Tensor(num_graphs, self.num_nodes, 1)).to(device)
-        emb_t = Parameter(torch.Tensor(num_graphs, 1, self.num_nodes)).to(device)
-
-        # Initialize the parameters
-        self.reset_parameters(emb_s, emb_t)
-
-        # adj: [G, N, N]
-        adj = torch.matmul(emb_s, emb_t).to(device)
-
-        # Remove self-loops
-        adj = adj.clone()
-        idx = torch.arange(self.num_nodes, dtype=torch.long, device=device)
-        adj[:, idx, idx] = float('-inf')
-
-        # top-k-edge adj
-        adj_flat = adj.reshape(num_graphs, -1)
-        indices = adj_flat.topk(k=self.k)[1].reshape(-1)
-
-        idx = torch.tensor([i // self.k for i in range(indices.size(0))], device=device)
-
-        adj_flat = torch.zeros_like(adj_flat).clone()
-        adj_flat[idx, indices] = 1.
-        adj = adj_flat.reshape_as(adj)
-
-        return adj
-
-
-# 手动图构建======================================================================================================
-class Manual_Graph_Construction(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, node_features):
-        bs, N, dimen = node_features.size()
-        # 初始化12x12的邻接矩阵，所有元素都为0
-        # adj_matrix = np.zeros((N, N), dtype=np.float)
-        adj_matrix = torch.full((N, N), 0.0, dtype=torch.float32).cuda(args.gpu)
-        # 节点1到节点6全连接
-        for i in range(1, 7):
-            for j in range(1, 7):
-                adj_matrix[i - 1][j - 1] = 1.0
-
-        # 节点7到节点12全连接
-        for i in range(7, 13):
-            for j in range(7, 13):
-                adj_matrix[i - 1][j - 1] = 1.0
-
-        # 节点1、节点6、节点10、节点11全连接
-        adj_matrix[0][5] = 1.0
-        adj_matrix[5][0] = 1.0
-        adj_matrix[0][9] = 1.0
-        adj_matrix[0][10] = 1.0
-        adj_matrix[5][9] = 1.0
-        adj_matrix[5][10] = 1.0
-        adj_matrix[9][0] = 1.0
-        adj_matrix[9][5] = 1.0
-        adj_matrix[10][0] = 1.0
-        adj_matrix[10][5] = 1.0
-
-        # 适应batch size
-        adj_batch = adj_matrix.repeat(bs, 1, 1)
-        adj_batch = adj_batch.cuda(args.gpu)
-        return adj_batch
-
-
 """
-池化的方法
+Graph Pooling
 """
 
 
-# 时间图池化方案==========================================================================================
-class Dense_TimeDiffPool1d(nn.Module):
-    def __init__(self, pre_nodes, pooled_nodes, kern_size, padding):
-        super().__init__()
-
-        # TODO: add Normalization
-        self.time_conv = nn.Conv1d(pre_nodes, pooled_nodes, kern_size, padding=padding)
-
-        self.re_param = Parameter(Tensor(kern_size, 1))
-        self.reset_parameters()
-
-    def reset_parameters(self):
-        self.time_conv.reset_parameters()
-        init.kaiming_uniform_(self.re_param, nonlinearity='relu')
-
-    def forward(self, x: Tensor, adj: Tensor):
-        """
-        Args:
-            x (Tensor): [B, N, F]
-            adj (Tensor): [G, N, N]
-        """
-
-        out = self.time_conv(x)
-
-        # s: [ N^(l+1), N^l, 1, K ]
-        s = torch.matmul(self.time_conv.weight, self.re_param).view(out.size(-2), -1)
-
-        # TODO: fully-connect, how to decrease time complexity
-        out_adj = torch.matmul(torch.matmul(s, adj), s.transpose(0, 1))
-        # print("out_adj", out_adj.size())  # [16,48,48] -> [16,36,36] -> [16,24,24]
-
-        return out, out_adj
-
-
-# StructPool 结构图池化方法=============================================================================================
-class StructPool(nn.Module):
-
-    def __init__(self, k, latent_dim=[48, 48]):
-        super(StructPool, self).__init__()
-
-        self.latent_dim = latent_dim
-        self.latent_dim.append(k)
-        self.k = k  # 聚类数量
-        self.number_iterations = 5
-        self.l_hop = 15
-        self.dense_crf = True
-        self.softmax = nn.Softmax(dim=None)
-        self.w_filter = Variable(torch.eye(k)).float().cuda(args.gpu)
-        self.w_compat = Variable(-1 * torch.eye(k)).float().cuda(args.gpu)
-        self.avgpool = nn.AdaptiveAvgPool1d(k)
-
-    def calculate_U(self, X, A):
-        b, n, _ = A.size()
-        U = torch.bmm(A, X)
-        U = self.avgpool(U)
-        # 行归一化
-        normalized_linear = U / U.sum(dim=-1, keepdim=True)  # 行归一化
-        U = torch.tanh(normalized_linear)
-        return U
-
-    def forward(self, X, A):
-        A = A.float()
-        n2n_sp = A
-        U = self.calculate_U(X, A)
-        q_values = U
-        '''  "Perform crf pooling" '''
-        for i in range(self.number_iterations):
-            '''  Step one, softmax as initialize, unary potentials U across all the labels at each node '''
-            softmax_out = F.softmax(q_values, dim=-1)  # [b,n,k]
-            ''' Use vector similarity to replace kernels '''
-            matrix_W = torch.matmul(X, torch.transpose(X, -2, -1)).float()  # [b,n,n]
-            Diag = torch.eye(matrix_W.size()[-2], matrix_W.size()[-1])
-            Diag = Diag.view(Diag.size()[-2], -1).float().cuda(args.gpu)
-
-            W = matrix_W - matrix_W * Diag  # [b,n,n]
-
-            if not self.dense_crf:
-                A_l = self.get_l_hops(A, self.l_hop)
-                W = W * A_l
-
-            normalized_m = torch.sum(W, dim=-1, keepdim=True)  # [b,n,1]
-            out = torch.matmul(W, softmax_out)  # [b,n,k]
-            out_norm = torch.div(out, normalized_m)  # [b,n,k]
-            '''' weighting filter outputs'''
-            out_norm = torch.matmul(out_norm, self.w_filter)  # [b,n,k]
-            ''' Next, Compatibility Transform '''
-            out_norm = torch.matmul(out_norm, self.w_compat)  # [b,n,k]
-            q_values = U - out_norm  # [b,n,k]
-
-        L = F.softmax(q_values, dim=-1)  # [b,n,k]
-        L_onehot = L
-        L_onehot_T = torch.transpose(L_onehot, -2, -1)  # [b,k,n]
-        X_out = torch.matmul(L_onehot_T, X)  # [b,k,d]
-
-        A_out0 = torch.matmul(L_onehot_T, A)
-        A_out = torch.matmul(A_out0, L_onehot)
-        return X_out, A_out
-
-
-# 按导联特定的按照patch池化===============================================================================================
 class AdaptiveWeight(nn.Module):
     def __init__(self, plances=32):
         super(AdaptiveWeight, self).__init__()
@@ -289,13 +83,13 @@ class LeadSpecificPatchPool(nn.Module):
 
     def forward(self, x, adj):
         """
-        按导联进行独立池化，每个导联的patch使用卷积处理，不跨导联池化
+        Independent pooling is performed by lead, and the patch of each lead is processed by convolution, without cross-lead pooling
         Args:
-            x: 输入特征矩阵，形状为 [batch_size, num_nodes, features]
-            adj: 输入邻接矩阵，形状为 [batch_size, num_nodes, num_nodes]
+            x: Input feature matrix, shape is [batch_size, num_nodes, features]
+            adj: Input adjacency matrix, shape is [batch_size, num_nodes, num_nodes]
         Returns:
-            new_x: 池化后的特征矩阵
-            new_adj: 池化后的邻接矩阵
+            new_x: Pooled feature matrix
+            new_adj: Pooled adjacency matrix
         """
         batch_size, num_nodes, features = x.shape
         adj = adj.unsqueeze(1)
@@ -354,13 +148,13 @@ class LeadSpecificPatchPool_new(nn.Module):
 
     def forward(self, x, adj):
         """
-        按导联进行独立池化，每个导联的patch使用卷积处理，不跨导联池化
+        Independent pooling is performed by lead, and each lead patch is processed by convolution, without cross-lead pooling
         Args:
-            x: 输入特征矩阵，形状为 [batch_size, num_nodes, features]
-            adj: 输入邻接矩阵，形状为 [batch_size, num_nodes, num_nodes]
+            x: Input feature matrix, shape is [batch_size, num_nodes, features]
+            adj: Input adjacency matrix, shape is [batch_size, num_nodes, num_nodes]
         Returns:
-            pooled_x: 池化后的特征矩阵
-            pooled_adj: 池化后的邻接矩阵
+            pooled_x: Pooled feature matrix
+            pooled_adj: Pooled adjacency matrix
         """
 
         batch_size, num_nodes, features = x.shape
@@ -380,69 +174,11 @@ class LeadSpecificPatchPool_new(nn.Module):
         pooled_x = x.reshape(batch_size, -1, features)
         return pooled_x, pooled_adj
 
-
-# 变分图池化方案==========================================================================================
-class Encoder(nn.Module):
-    def __init__(self, input_dim, hidden_dim):
-        super(Encoder, self).__init__()
-        self.linear = nn.Linear(input_dim, hidden_dim)
-        self.activation = nn.Tanh()
-
-    def forward(self, x):
-        x = self.linear(x)
-        x = self.activation(x)
-        return x
-
-
-class Decoder(nn.Module):
-    def __init__(self, input_dim, output_dim):
-        super(Decoder, self).__init__()
-        self.linear = nn.Linear(input_dim, output_dim)
-        self.activation = nn.Sigmoid()
-
-    def forward(self, x):
-        x = self.linear(x)
-        x = self.activation(x)
-        return x
-
-
-class VariationalGraphPooling(nn.Module):
-    def __init__(self, input_dim, hidden_dim, num_clusters):
-        super(VariationalGraphPooling, self).__init__()
-        self.encoder = Encoder(input_dim, hidden_dim)
-        self.decoder = Decoder(hidden_dim, num_clusters * input_dim)
-        self.num_clusters = num_clusters
-
-    def forward(self, x):
-        # x: [batch_size, num_nodes, input_dim]
-        batch_size, num_nodes, input_dim = x.size()
-
-        # Encode
-        x_encoded = self.encoder(x)  # [batch_size, num_nodes, hidden_dim]
-
-        # Decode to get cluster centers
-        cluster_centers = self.decoder(x_encoded).view(batch_size, num_nodes, self.num_clusters, input_dim)
-        cluster_centers = cluster_centers.mean(dim=1)  # [batch_size, num_clusters, input_dim]
-
-        # Compute assignment matrix using cosine similarity
-        x_norm = x / x.norm(dim=-1, keepdim=True)  # Normalize
-        cluster_centers_norm = cluster_centers / cluster_centers.norm(dim=-1, keepdim=True)  # Normalize
-        assignment_matrix = torch.matmul(x_norm, cluster_centers_norm.transpose(-1,
-                                                                                -2))  # [batch_size, num_nodes, num_clusters]
-        assignment_matrix = F.softmax(assignment_matrix, dim=-1)
-
-        # Aggregate features
-        pooled_features = torch.matmul(assignment_matrix, x)  # [batch_size, num_clusters, input_dim]
-
-        return pooled_features, assignment_matrix, cluster_centers
-
-
 '''
-图特征提取的网络方法
+Network Methods for Graph Feature Extraction
 '''
 
 
-# FC图卷积
 class GCN(nn.Module):
     def __init__(self, input_dimension, output_dinmension, k):
         # In GCN, k means the size of receptive field. Different receptive fields can be concatnated or summed
@@ -481,7 +217,6 @@ class GCN(nn.Module):
         return F.leaky_relu(GCN_output_)
 
 
-# 图同构网络GIN
 class GIN(nn.Module):
     def __init__(self, input_dimension, output_dimension, k):
         # k in GIN is typically the number of layers
@@ -574,6 +309,7 @@ class GAT(nn.Module):
     def __repr__(self):
         return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'
 
+
 class SAGEConv(nn.Module):
     def __init__(self, in_features, out_features):
         super(SAGEConv, self).__init__()
@@ -614,7 +350,6 @@ class SAGEConv(nn.Module):
         z = z / z_norm  # L2 正则化
 
         return z
-
 
 # if __name__ == "__main__":
 #     batch_size, num_nodes, channels, num_clusters = (16, 12, 32, 6)
