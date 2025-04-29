@@ -7,8 +7,8 @@ In order to run this project, you need to install the following packages:
 * numpy 1.24.4
 
 # :partying_face:Abstract
-The 12-lead electrocardiogram (ECG) is a crucial tool for diagnosing cardiovascular diseases. Traditional ECG-based automated diagnostic methods typically capture spatial and temporal dependencies separately. However, due to the complex spatial-temporal relationships in 12-lead ECGs, they often overlook fine-grained correlations across different leads at various timestamps, which could be enhanced using external knowledge. This limitation hinders the representation of patient-specific information. In this work, we address these challenges using a Spatial-Temporal Dynamic Graph (STAR). STAR models each patient’s ECG as a dynamic Spatial-Temporal Relationship (STR) graph, effectively capturing spatial-temporal dependencies and patient-specific features by integrating ECG data with latent spatial-temporal knowledge. Our method incorporates a patch-wise multi-scale temporal feature extraction module to enhance fine-grained temporal representation. To further capture the comprehensive spatial-temporal dependencies in the STR graph, a dynamic graph learning module with a lead-specific pooling method is proposed. Experiments demonstrate that our approach outperforms state-of-the-art methods across multiple tasks on several multi-label datasets. The code is available at [Code](https://github.com/Aires2019/Spatial-Temporal-ECG "code").
-![Model](https://github.com/Aires2019/Spatial-Temporal-ECG/blob/main/pic/ECG_model.png)
+The 12-lead electrocardiogram (ECG) is a crucial tool for diagnosing cardiovascular diseases. Traditional ECG-based automated diagnostic methods typically capture spatial and temporal dependencies separately. However, due to the complex spatial-temporal relationships in 12-lead ECGs, they often overlook fine-grained correlations across different leads at various timestamps, which could be enhanced using external knowledge. This limitation hinders the representation of patient-specific information. In this work, we address these challenges using a Spatial-Temporal Dynamic Graph (STAR). STAR models each patient’s ECG as a dynamic Spatial-Temporal Relationship (STR) graph, effectively capturing spatial-temporal dependencies and patient-specific features by integrating ECG data with latent spatial-temporal knowledge. Our method incorporates a patch-wise multi-scale temporal feature extraction module to enhance fine-grained temporal representation. To further capture the comprehensive spatial-temporal dependencies in the STR graph, a dynamic graph learning module with a lead-specific pooling method is proposed. Experiments demonstrate that our approach outperforms state-of-the-art methods across multiple tasks on several multi-label datasets.
+![Model](./pic/model_STAR.png)
 # :triangular_flag_on_post:Dataset
 We use three dataset for our experiments:
 ## :ballot_box_with_check:PTB-XL
@@ -22,7 +22,7 @@ You can download the dataset at this [link](https://tianchi.aliyun.com/competiti
 Hefei High-Tech Cup (HFHC) Dataset contains 20335 medical ECG samples and was provided by the Engineering Research Center of the Ministry of Education of the Mobile Health Management System of Hangzhou Normal University. The dataset has 34 classes. Each sample has eight leads: I, II, V1, V2, V3, V4, V5, and V6. The data for the remaining 4 leads can be calculated from the data for the first 8 leads. The sampling frequency of each data point is 500hz and the sampling time is 10 seconds. We also reduced the sampling frequency of the data to 100hz, and then normalized the data. 10-fold cross-validation was also used for the dataset.
 
 # :exclamation:Experimental Results
-![pic](https://github.com/Aires2019/Spatial-Temporal-ECG/blob/main/pic/result.png)
+![pic](./pic/img.png)
 # :question:How to use
 ## :pencil2:Data Preprocessing
 In order to use a data set, you need to process the data set first.
